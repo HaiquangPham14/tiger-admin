@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Bạn có thể thêm style global nhẹ ở đây nếu cần */
+html, body, #root {
+  height: 100%;
+}
