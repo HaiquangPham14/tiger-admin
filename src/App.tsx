@@ -69,7 +69,7 @@ export default function AdminApp() {
   // Stats
   const stats = useMemo(() => {
     const total = data.length;
-    const winners = data.filter(x => x.isWinner).length;
+    const winners = data.filter(x => x.reward).length;
     const now = new Date();
     const today = data.filter((x) => isSameDayInVN(new Date(x.joinedAt), now)).length;
     const thisWeek = data.filter((x) => {
@@ -97,7 +97,6 @@ export default function AdminApp() {
       filtered = filtered.filter((x) => {
         return (
           x.fullName.toLowerCase().includes(q) ||
-          x.email.toLowerCase().includes(q) ||
           x.phoneNumber.toLowerCase().includes(q)
         );
       });
@@ -105,9 +104,9 @@ export default function AdminApp() {
     
     // Winner filter
     if (filterWinner === "winner") {
-      filtered = filtered.filter(x => x.isWinner);
+      filtered = filtered.filter(x => x.reward);
     } else if (filterWinner === "non-winner") {
-      filtered = filtered.filter(x => !x.isWinner);
+      filtered = filtered.filter(x => !x.reward);
     }
     
     // Sort
@@ -150,14 +149,13 @@ export default function AdminApp() {
 
   // CSV Export
   const exportToCSV = () => {
-    const headers = ["ID", "Họ tên", "Số điện thoại", "Email", "Thời gian đăng ký", "Trạng thái Winner"];
+    const headers = ["ID", "Họ tên", "Số điện thoại", "Thời gian đăng ký", "Phần thưởng"];
     const csvData = processedData.map(customer => [
       customer.id,
       customer.fullName,
       customer.phoneNumber,
-      customer.email,
       formatVN(new Date(customer.joinedAt)),
-      customer.isWinner ? "Winner" : "Không"
+      customer.reward ?? ""
     ]);
     
     const csvContent = [headers, ...csvData]
@@ -344,7 +342,7 @@ export default function AdminApp() {
                   <div className="relative">
                     <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
                     <input
-                      placeholder="Nhập tên, email hoặc số điện thoại..."
+                      placeholder="Nhập tên hoặc số điện thoại..."
                       className="w-full h-10 sm:h-11 lg:h-12 pl-10 sm:pl-12 pr-3 sm:pr-4 rounded-lg lg:rounded-xl border border-cyan-200 bg-white/90 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none text-sm lg:text-base"
                       value={query}
                       onChange={(e) => {
@@ -424,7 +422,7 @@ export default function AdminApp() {
                       )}
                       {filterWinner !== "all" && (
                         <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg font-medium">
-                          {filterWinner === "winner" ? "🏆 Winner" : "👤 Chưa trúng"}
+                          {filterWinner === "winner" ? "🎁 Đã nhận quà" : "👤 Chưa trúng"}
                         </span>
                       )}
                     </div>
@@ -466,7 +464,7 @@ export default function AdminApp() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">{customer.fullName}</h3>
-                            <WinnerBadge isWinner={customer.isWinner} />
+                            <RewardBadge reward={customer.reward} />
                           </div>
                         </div>
                       </div>
@@ -475,12 +473,6 @@ export default function AdminApp() {
                           <span className="text-slate-500 min-w-4">📞</span>
                           <a href={`tel:${customer.phoneNumber}`} className="text-cyan-600 hover:underline font-medium truncate">
                             {customer.phoneNumber}
-                          </a>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-500 min-w-4">📧</span>
-                          <a href={`mailto:${customer.email}`} className="text-cyan-600 hover:underline font-medium break-all">
-                            {customer.email}
                           </a>
                         </div>
                         <div className="flex items-center gap-2">
@@ -515,7 +507,7 @@ export default function AdminApp() {
                       direction={sortDirection}
                       onSort={handleSort}
                     />
-                    <Th>Liên hệ</Th>
+                    <Th>Số điện thoại</Th>
                     <SortableTableHeader
                       label="Thời gian đăng ký"
                       field="joinedAt"
@@ -575,14 +567,6 @@ export default function AdminApp() {
                                 📞 {customer.phoneNumber}
                               </a>
                             </div>
-                            <div>
-                              <a 
-                                href={`mailto:${customer.email}`} 
-                                className="text-cyan-600 hover:text-cyan-800 hover:underline font-medium transition-colors break-all text-sm"
-                              >
-                                📧 {customer.email}
-                              </a>
-                            </div>
                           </div>
                         </Td>
                         <Td className="font-medium text-slate-700">
@@ -592,7 +576,7 @@ export default function AdminApp() {
                           </div>
                         </Td>
                         <Td>
-                          <WinnerBadge isWinner={customer.isWinner} />
+                          <RewardBadge reward={customer.reward} />
                         </Td>
                       </motion.tr>
                     ))
@@ -868,8 +852,8 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
   return <td className={`px-4 lg:px-6 py-3 lg:py-4 align-middle text-sm lg:text-base ${className}`}>{children}</td>;
 }
 
-function WinnerBadge({ isWinner }: { isWinner: boolean }) {
-  if (isWinner) {
+function RewardBadge({ reward }: { reward: string | null }) {
+  if (reward) {
     return (
       <motion.span 
         className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25"
@@ -878,7 +862,7 @@ function WinnerBadge({ isWinner }: { isWinner: boolean }) {
         whileHover={{ scale: 1.05 }}
       >
         <Trophy className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
-        WINNER
+        🎁 
       </motion.span>
     );
   }
@@ -886,7 +870,7 @@ function WinnerBadge({ isWinner }: { isWinner: boolean }) {
   return (
     <span className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
       <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 mr-1" />
-      Pending
+      Chưa trúng
     </span>
   );
 }
