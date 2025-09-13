@@ -30,6 +30,7 @@ import {
   Settings,
   Trash2,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -93,6 +94,49 @@ const exportAndClearData = async (): Promise<void> => {
   URL.revokeObjectURL(url);
 };
 
+const exportForUnity = async (): Promise<void> => {
+  const response = await fetch("https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/export-for-unity", {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const errorData: unknown = await response.json();
+      if (
+        typeof errorData === "object" &&
+        errorData !== null &&
+        "message" in errorData
+      ) {
+        message = String((errorData as { message?: unknown }).message ?? message);
+      }
+    } catch {
+      /* ignore JSON parse error */
+    }
+    throw new Error(message);
+  }
+
+  // Tải file
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+
+  // Lấy tên file từ header hoặc tạo tên mặc định
+  const cd = response.headers.get("content-disposition");
+  let filename = `tiger_customers_unity_${new Date().toISOString().split("T")[0]}.xlsx`;
+  if (cd) {
+    const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match) filename = match[1].replace(/['"]/g, "");
+  }
+
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 /* ---------- Component ---------- */
 export default function AdminApp() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -114,6 +158,9 @@ export default function AdminApp() {
   // Reset states
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+
+  // Unity export state
+  const [isExportingUnity, setIsExportingUnity] = useState<boolean>(false);
 
   // Fetch dữ liệu
   const fetchData = async (showRefreshIndicator = false): Promise<void> => {
@@ -149,6 +196,19 @@ export default function AdminApp() {
       setError(msg);
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  // Unity Export
+  const handleUnityExport = async (): Promise<void> => {
+    try {
+      setIsExportingUnity(true);
+      await exportForUnity();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Lỗi khi xuất file Unity.";
+      setError(msg);
+    } finally {
+      setIsExportingUnity(false);
     }
   };
 
@@ -599,7 +659,7 @@ export default function AdminApp() {
 
                   {/* Action Buttons */}
                   <div className="flex items-end gap-2 sm:gap-3">
-                    {/* Export Button */}
+                    {/* Export CSV Button */}
                     <motion.button
                       onClick={exportToCSV}
                       disabled={loading || processedData.length === 0}
@@ -608,7 +668,28 @@ export default function AdminApp() {
                       whileTap={{ scale: 0.98 }}
                     >
                       <FileSpreadsheet className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
-                      <span>Xuất Excel</span>
+                      <span>CSV</span>
+                    </motion.button>
+
+                    {/* Unity Export Button */}
+                    <motion.button
+                      onClick={handleUnityExport}
+                      disabled={loading || data.length === 0 || isExportingUnity}
+                      className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-3 sm:px-4 lg:px-6 rounded-lg lg:rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold flex items-center justify-center gap-1 sm:gap-2 hover:from-purple-700 hover:to-violet-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all text-xs sm:text-sm lg:text-base"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {isExportingUnity ? (
+                        <>
+                          <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 animate-spin" />
+                          <span>Unity...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                          <span>Unity</span>
+                        </>
+                      )}
                     </motion.button>
 
                     {/* Reset Button */}
