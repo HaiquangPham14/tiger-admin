@@ -51,6 +51,26 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const REALTIME_INTERVAL = 10_000; // 10 giây
 
 /* ---------- API helpers ---------- */
+const getEligibleCustomers = async (): Promise<TigerCustomer[]> => {
+  const response = await fetch(
+    "https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/Enable",
+    { method: "GET" }
+  );
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const errorData: unknown = await response.json();
+      if (typeof errorData === "object" && errorData !== null && "message" in errorData) {
+        message = String((errorData as { message?: unknown }).message ?? message);
+      }
+    } catch { /* ignore JSON parse error */ }
+    throw new Error(message);
+  }
+
+  const data = (await response.json()) as TigerCustomer[];
+  return data;
+};
 const exportAndClearData = async (): Promise<void> => {
   const response = await fetch("https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/export-and-clear-excel", {
     method: "POST",
@@ -149,6 +169,7 @@ export default function AdminApp() {
   const [sortField, setSortField] = useState<SortField>("joinedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [eligibleOnly, setEligibleOnly] = useState<boolean>(false);
 
   // Realtime states
   const [isRealtime, setIsRealtime] = useState<boolean>(true);
@@ -166,13 +187,12 @@ export default function AdminApp() {
   const fetchData = async (showRefreshIndicator = false): Promise<void> => {
     try {
       if (showRefreshIndicator) setIsRefreshing(true);
-      const list = await getCustomers();
+      const list = eligibleOnly ? await getEligibleCustomers() : await getCustomers();
       setData(list);
       setLastUpdate(new Date());
       setError("");
     } catch (e: unknown) {
-      const msg =
-        e instanceof Error ? e.message : "Không tải được dữ liệu.";
+      const msg = e instanceof Error ? e.message : "Không tải được dữ liệu.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -214,8 +234,8 @@ export default function AdminApp() {
 
   // Lần fetch đầu
   useEffect(() => {
-    void fetchData();
-  }, []);
+    void fetchData(true);
+  }, [eligibleOnly]);
 
   // Auto-refresh realtime
   useEffect(() => {
@@ -253,8 +273,8 @@ export default function AdminApp() {
     const growthRate =
       yesterdayRegistrations > 0
         ? ((todayRegistrations - yesterdayRegistrations) /
-            yesterdayRegistrations) *
-          100
+          yesterdayRegistrations) *
+        100
         : 0;
 
     return { total, winners, today, thisWeek, growthRate };
@@ -395,8 +415,8 @@ export default function AdminApp() {
               </div>
 
               <p className="text-gray-700 mb-6">
-                Bạn có chắc chắn muốn xuất dữ liệu và xóa toàn bộ khách hàng
-                khỏi hệ thống? File Excel sẽ được tải xuống trước khi xóa dữ
+                Bạn có chắc chắn muốn xuất dữ liệu và vô hiệu toàn bộ khách hàng
+                khỏi hệ thống? File Excel sẽ được tải xuống trước khi vô hiệu hóa dữ
                 liệu.
               </p>
 
@@ -549,11 +569,10 @@ export default function AdminApp() {
                 icon={<Trophy className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />}
                 title="Người trúng thưởng"
                 value={loading ? "-" : stats.winners.toLocaleString("vi-VN")}
-                subtitle={`${
-                  stats.total > 0
+                subtitle={`${stats.total > 0
                     ? ((stats.winners / stats.total) * 100).toFixed(1)
                     : 0
-                }% tổng số`}
+                  }% tổng số`}
                 trend="Winner rate"
                 color="green"
                 gradient="from-emerald-600 to-teal-600"
@@ -567,15 +586,15 @@ export default function AdminApp() {
                   stats.growthRate > 0
                     ? `+${stats.growthRate.toFixed(1)}%`
                     : stats.growthRate < 0
-                    ? `${stats.growthRate.toFixed(1)}%`
-                    : "0%"
+                      ? `${stats.growthRate.toFixed(1)}%`
+                      : "0%"
                 }
                 trendDirection={
                   stats.growthRate > 0
                     ? "up"
                     : stats.growthRate < 0
-                    ? "down"
-                    : "neutral"
+                      ? "down"
+                      : "neutral"
                 }
                 color="purple"
                 gradient="from-violet-600 to-purple-600"
@@ -659,6 +678,21 @@ export default function AdminApp() {
 
                   {/* Action Buttons */}
                   <div className="flex items-end gap-2 sm:gap-3">
+                    <motion.button
+                      onClick={() => setEligibleOnly((p) => !p)}
+                      disabled={loading}
+                      className={`flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-3 sm:px-4 lg:px-6 rounded-lg lg:rounded-xl
+    font-semibold flex items-center justify-center gap-2 transition-all text-xs sm:text-sm lg:text-base
+    ${eligibleOnly
+                          ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg"
+                          : "bg-white border border-cyan-200 text-slate-700 hover:bg-slate-50"}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      title="Chỉ lấy khách hàng IsEnable = true"
+                    >
+                      <Filter className="w-4 h-4" />
+                      <span>{eligibleOnly ? "KH hợp lệ (ON)" : "KH hợp lệ"}</span>
+                    </motion.button>
                     {/* Export CSV Button */}
                     <motion.button
                       onClick={exportToCSV}
@@ -880,9 +914,8 @@ export default function AdminApp() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.02 }}
-                        className={`hover:bg-gradient-to-r hover:from-cyan-50/80 hover:to-blue-50/60 transition-all ${
-                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                        }`}
+                        className={`hover:bg-gradient-to-r hover:from-cyan-50/80 hover:to-blue-50/60 transition-all ${index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                          }`}
                       >
                         <Td className="font-mono font-bold text-slate-800">
                           <div className="flex items-center gap-2">
@@ -965,11 +998,10 @@ export default function AdminApp() {
                           <button
                             key={pageNum}
                             onClick={() => setPage(pageNum)}
-                            className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                              page === pageNum
+                            className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg text-xs sm:text-sm font-medium transition-all ${page === pageNum
                                 ? "bg-cyan-600 text-white shadow-lg"
                                 : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
-                            }`}
+                              }`}
                           >
                             {pageNum}
                           </button>
@@ -1040,11 +1072,10 @@ function RealtimeControls({
       <div className="flex items-center gap-2 lg:gap-3">
         <button
           onClick={onToggleRealtime}
-          className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg border font-medium text-xs lg:text-sm transition-all ${
-            isRealtime
+          className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg border font-medium text-xs lg:text-sm transition-all ${isRealtime
               ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
               : "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-          }`}
+            }`}
         >
           {isRealtime ? (
             <Wifi className="w-3 h-3 lg:w-4 lg:h-4" />
@@ -1062,9 +1093,8 @@ function RealtimeControls({
           whileTap={{ scale: 0.95 }}
         >
           <RefreshCw
-            className={`w-3 h-3 lg:w-4 lg:h-4 ${
-              isRefreshing ? "animate-spin" : ""
-            }`}
+            className={`w-3 h-3 lg:w-4 lg:h-4 ${isRefreshing ? "animate-spin" : ""
+              }`}
           />
         </motion.button>
       </div>
@@ -1202,18 +1232,16 @@ function SortableTableHeader({
         </span>
         <div className="flex flex-col">
           <ChevronUp
-            className={`w-3 h-3 -mb-1 transition-colors ${
-              isActive && direction === "asc"
+            className={`w-3 h-3 -mb-1 transition-colors ${isActive && direction === "asc"
                 ? "text-cyan-600"
                 : "text-slate-400"
-            }`}
+              }`}
           />
           <ChevronDown
-            className={`w-3 h-3 transition-colors ${
-              isActive && direction === "desc"
+            className={`w-3 h-3 transition-colors ${isActive && direction === "desc"
                 ? "text-cyan-600"
                 : "text-slate-400"
-            }`}
+              }`}
           />
         </div>
       </div>
