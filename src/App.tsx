@@ -48,7 +48,7 @@ type Stats = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
-const REALTIME_INTERVAL = 10_000; // 10 giây
+const REALTIME_INTERVAL = 30_000; // 10 giây
 
 /* ---------- API helpers ---------- */
 // Tải toàn bộ dữ liệu Event (Excel) từ BE (GET /export-all-excel)
