@@ -51,26 +51,49 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const REALTIME_INTERVAL = 10_000; // 10 giây
 
 /* ---------- API helpers ---------- */
-const getEligibleCustomers = async (): Promise<TigerCustomer[]> => {
-  const response = await fetch(
-    "https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/Enable",
-    { method: "GET" }
-  );
+// Tải toàn bộ dữ liệu Event (Excel) từ BE (GET /export-all-excel)
+const exportAllExcel = async (): Promise<void> => {
+  try {
+    const response = await fetch(
+      "https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/export-all-excel",
+      { method: "GET" }
+    );
 
-  if (!response.ok) {
-    let message = `HTTP ${response.status}`;
-    try {
-      const errorData: unknown = await response.json();
-      if (typeof errorData === "object" && errorData !== null && "message" in errorData) {
-        message = String((errorData as { message?: unknown }).message ?? message);
-      }
-    } catch { /* ignore JSON parse error */ }
-    throw new Error(message);
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const errorData: unknown = await response.json();
+        if (typeof errorData === "object" && errorData !== null && "message" in errorData) {
+          message = String((errorData as { message?: unknown }).message ?? message);
+        }
+      } catch { /* ignore */ }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Lấy tên file từ Content-Disposition nếu có
+    const cd = response.headers.get("content-disposition");
+    let filename = `tiger_customers_all_${new Date().toISOString().split("T")[0]}.xlsx`;
+    if (cd) {
+      const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match) filename = match[1].replace(/['"]/g, "");
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert((err as Error)?.message ?? "Không tải được file Excel.");
   }
-
-  const data = (await response.json()) as TigerCustomer[];
-  return data;
 };
+
 const exportAndClearData = async (): Promise<void> => {
   const response = await fetch("https://tigerbeer2025.azurewebsites.net/api/TigerCustomers/export-and-clear-excel", {
     method: "POST",
@@ -169,7 +192,6 @@ export default function AdminApp() {
   const [sortField, setSortField] = useState<SortField>("joinedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [eligibleOnly, setEligibleOnly] = useState<boolean>(false);
 
   // Realtime states
   const [isRealtime, setIsRealtime] = useState<boolean>(true);
@@ -187,12 +209,13 @@ export default function AdminApp() {
   const fetchData = async (showRefreshIndicator = false): Promise<void> => {
     try {
       if (showRefreshIndicator) setIsRefreshing(true);
-      const list = eligibleOnly ? await getEligibleCustomers() : await getCustomers();
+      const list = await getCustomers();
       setData(list);
       setLastUpdate(new Date());
       setError("");
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Không tải được dữ liệu.";
+      const msg =
+        e instanceof Error ? e.message : "Không tải được dữ liệu.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -234,8 +257,8 @@ export default function AdminApp() {
 
   // Lần fetch đầu
   useEffect(() => {
-    void fetchData(true);
-  }, [eligibleOnly]);
+    void fetchData();
+  }, []);
 
   // Auto-refresh realtime
   useEffect(() => {
@@ -415,9 +438,7 @@ export default function AdminApp() {
               </div>
 
               <p className="text-gray-700 mb-6">
-                Bạn có chắc chắn muốn xuất dữ liệu và vô hiệu toàn bộ khách hàng
-                khỏi hệ thống? File Excel sẽ được tải xuống trước khi vô hiệu hóa dữ
-                liệu.
+                Bạn có chắc chắn muốn Reset? Dữ liệu người dùng nhận thưởng hiện tại sẽ bị vô hiệu hóa?
               </p>
 
               <div className="flex gap-3">
@@ -678,31 +699,22 @@ export default function AdminApp() {
 
                   {/* Action Buttons */}
                   <div className="flex items-end gap-2 sm:gap-3">
-                    <motion.button
-                      onClick={() => setEligibleOnly((p) => !p)}
-                      disabled={loading}
-                      className={`flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-3 sm:px-4 lg:px-6 rounded-lg lg:rounded-xl
-    font-semibold flex items-center justify-center gap-2 transition-all text-xs sm:text-sm lg:text-base
-    ${eligibleOnly
-                          ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg"
-                          : "bg-white border border-cyan-200 text-slate-700 hover:bg-slate-50"}`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      title="Chỉ lấy khách hàng IsEnable = true"
-                    >
-                      <Filter className="w-4 h-4" />
-                      <span>{eligibleOnly ? "KH hợp lệ (ON)" : "KH hợp lệ"}</span>
-                    </motion.button>
                     {/* Export CSV Button */}
                     <motion.button
-                      onClick={exportToCSV}
-                      disabled={loading || processedData.length === 0}
-                      className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-3 sm:px-4 lg:px-6 rounded-lg lg:rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold flex items-center justify-center gap-1 sm:gap-2 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all text-xs sm:text-sm lg:text-base"
+                      onClick={exportAllExcel}
+                      disabled={loading}
+                      className="flex-1 sm:flex-none h-10 sm:h-11 lg:h-12 px-3 sm:px-4 lg:px-6 rounded-lg lg:rounded-xl
+             bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold
+             flex items-center justify-center gap-1 sm:gap-2
+             hover:from-emerald-700 hover:to-teal-700
+             disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all
+             text-xs sm:text-sm lg:text-base"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      title="Tải toàn bộ dữ liệu Event ra Excel"
                     >
                       <FileSpreadsheet className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
-                      <span>CSV</span>
+                      <span>Tải hết dữ liệu Event</span>
                     </motion.button>
 
                     {/* Unity Export Button */}
