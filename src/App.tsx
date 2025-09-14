@@ -31,6 +31,8 @@ import {
   Trash2,
   AlertTriangle,
   Download,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -48,7 +50,7 @@ type Stats = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
-const REALTIME_INTERVAL = 30_000; // 10 giây
+const REALTIME_INTERVAL = 30_000; // 30 giây
 
 /* ---------- API helpers ---------- */
 // Tải toàn bộ dữ liệu Event (Excel) từ BE (GET /export-all-excel)
@@ -204,6 +206,23 @@ export default function AdminApp() {
 
   // Unity export state
   const [isExportingUnity, setIsExportingUnity] = useState<boolean>(false);
+
+  // Dark theme state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tiger-dark-mode');
+      if (saved) return JSON.parse(saved);
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('tiger-dark-mode', JSON.stringify(newMode));
+  };
 
   // Fetch dữ liệu
   const fetchData = async (showRefreshIndicator = false): Promise<void> => {
@@ -404,9 +423,13 @@ export default function AdminApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-sky-50 to-blue-50 overflow-x-hidden fixed inset-0">
+    <div className={`min-h-screen overflow-x-hidden fixed inset-0 transition-all duration-300 ${
+      isDarkMode
+        ? "bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800"
+        : "bg-gradient-to-br from-cyan-50 via-sky-50 to-blue-50"
+    }`}>
       {/* Background Effects */}
-      <BackgroundPattern />
+      <BackgroundPattern isDarkMode={isDarkMode} />
 
       {/* Reset Confirmation Modal */}
       <AnimatePresence>
@@ -421,30 +444,42 @@ export default function AdminApp() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              className={`rounded-2xl p-6 max-w-md w-full shadow-2xl ${
+                isDarkMode ? "bg-gray-800" : "bg-white"
+              }`}
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">
+                  <h3 className={`text-lg font-bold ${
+                    isDarkMode ? "text-gray-100" : "text-gray-900"
+                  }`}>
                     Xác nhận Reset
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className={`text-sm ${
+                    isDarkMode ? "text-gray-400" : "text-gray-600"
+                  }`}>
                     Hành động này không thể hoàn tác
                   </p>
                 </div>
               </div>
 
-              <p className="text-gray-700 mb-6">
+              <p className={`mb-6 ${
+                isDarkMode ? "text-gray-300" : "text-gray-700"
+              }`}>
                 Bạn có chắc chắn muốn Reset? Dữ liệu người dùng nhận thưởng hiện tại sẽ bị vô hiệu hóa?
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className={`flex-1 px-4 py-2 border rounded-lg transition-colors ${
+                    isDarkMode
+                      ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
                   disabled={isResetting}
                 >
                   Hủy
@@ -488,7 +523,11 @@ export default function AdminApp() {
       {/* Content */}
       <div className="relative z-10 w-full max-w-none">
         {/* Header */}
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/95 border-b border-cyan-200/60 shadow-lg shadow-cyan-900/5">
+        <header className={`sticky top-0 z-40 backdrop-blur-xl border-b shadow-lg transition-all duration-300 ${
+          isDarkMode
+            ? "bg-gray-900/95 border-gray-700 shadow-gray-900/20"
+            : "bg-white/95 border-cyan-200/60 shadow-cyan-900/5"
+        }`}>
           <div className="w-full px-3 sm:px-4 lg:px-6 xl:px-8">
             <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
               {/* Logo & Title */}
@@ -500,10 +539,16 @@ export default function AdminApp() {
                   <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-sm sm:text-xl lg:text-2xl xl:text-3xl font-black tracking-tight bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent truncate">
+                  <h1 className={`text-sm sm:text-xl lg:text-2xl xl:text-3xl font-black tracking-tight bg-gradient-to-r bg-clip-text text-transparent truncate ${
+                    isDarkMode
+                      ? "from-gray-100 via-gray-200 to-gray-300"
+                      : "from-slate-800 via-slate-700 to-slate-600"
+                  }`}>
                     Tiger Analytics
                   </h1>
-                  <p className="text-xs lg:text-sm text-slate-600 font-medium hidden sm:block">
+                  <p className={`text-xs lg:text-sm font-medium hidden sm:block ${
+                    isDarkMode ? "text-gray-400" : "text-slate-600"
+                  }`}>
                     Enterprise Dashboard
                   </p>
                 </div>
@@ -517,17 +562,44 @@ export default function AdminApp() {
                   onManualRefresh={handleManualRefresh}
                   isRefreshing={isRefreshing}
                   lastUpdate={lastUpdate}
+                  isDarkMode={isDarkMode}
                 />
                 <div className="flex gap-2">
-                  <StatusBadge label="Live" color="green" />
-                  <StatusBadge label="v2.1" color="blue" />
+                  <StatusBadge label="Live" color="green" isDarkMode={isDarkMode} />
+                  <StatusBadge label="v2.1" color="blue" isDarkMode={isDarkMode} />
                 </div>
                 <div className="flex gap-2">
-                  <button className="w-8 h-8 xl:w-9 xl:h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                    <Bell className="w-4 h-4 text-slate-600" />
+                  {/* Dark Mode Toggle */}
+                  <motion.button
+                    onClick={toggleDarkMode}
+                    className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-700 hover:bg-gray-600 text-amber-400"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title={isDarkMode ? "Chuyển sang Light Mode" : "Chuyển sang Dark Mode"}
+                  >
+                    {isDarkMode ? (
+                      <Sun className="w-4 h-4" />
+                    ) : (
+                      <Moon className="w-4 h-4" />
+                    )}
+                  </motion.button>
+                  <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  }`}>
+                    <Bell className="w-4 h-4" />
                   </button>
-                  <button className="w-8 h-8 xl:w-9 xl:h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                    <Settings className="w-4 h-4 text-slate-600" />
+                  <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  }`}>
+                    <Settings className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -535,7 +607,11 @@ export default function AdminApp() {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen((p) => !p)}
-                className="lg:hidden w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors flex-shrink-0"
+                className={`lg:hidden w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 ${
+                  isDarkMode
+                    ? "bg-gray-700 hover:bg-gray-600"
+                    : "bg-slate-100 hover:bg-slate-200"
+                }`}
               >
                 {isMobileMenuOpen ? (
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -553,19 +629,45 @@ export default function AdminApp() {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              className="fixed top-14 sm:top-16 right-0 h-full w-72 sm:w-80 bg-white shadow-2xl z-50 lg:hidden overflow-y-auto"
+              className={`fixed top-14 sm:top-16 right-0 h-full w-72 sm:w-80 shadow-2xl z-50 lg:hidden overflow-y-auto ${
+                isDarkMode ? "bg-gray-800" : "bg-white"
+              }`}
             >
               <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-semibold ${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  }`}>
+                    Theme
+                  </span>
+                  <motion.button
+                    onClick={toggleDarkMode}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-700 hover:bg-gray-600 text-amber-400"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {isDarkMode ? (
+                      <Sun className="w-5 h-5" />
+                    ) : (
+                      <Moon className="w-5 h-5" />
+                    )}
+                  </motion.button>
+                </div>
                 <RealtimeControls
                   isRealtime={isRealtime}
                   onToggleRealtime={() => setIsRealtime((p) => !p)}
                   onManualRefresh={handleManualRefresh}
                   isRefreshing={isRefreshing}
                   lastUpdate={lastUpdate}
+                  isDarkMode={isDarkMode}
                 />
                 <div className="flex flex-col gap-2">
-                  <StatusBadge label="Production Environment" color="green" />
-                  <StatusBadge label="Version 2.1.0" color="blue" />
+                  <StatusBadge label="Production Environment" color="green" isDarkMode={isDarkMode} />
+                  <StatusBadge label="Version 2.1.0" color="blue" isDarkMode={isDarkMode} />
                 </div>
               </div>
             </motion.div>
@@ -585,6 +687,7 @@ export default function AdminApp() {
                 trendDirection="up"
                 color="blue"
                 gradient="from-cyan-600 to-blue-600"
+                isDarkMode={isDarkMode}
               />
               <EnhancedStatsCard
                 icon={<Trophy className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />}
@@ -597,6 +700,7 @@ export default function AdminApp() {
                 trend="Winner rate"
                 color="green"
                 gradient="from-emerald-600 to-teal-600"
+                isDarkMode={isDarkMode}
               />
               <EnhancedStatsCard
                 icon={<UserPlus className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />}
@@ -619,6 +723,7 @@ export default function AdminApp() {
                 }
                 color="purple"
                 gradient="from-violet-600 to-purple-600"
+                isDarkMode={isDarkMode}
               />
               <EnhancedStatsCard
                 icon={<BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" />}
@@ -628,25 +733,38 @@ export default function AdminApp() {
                 trend="Weekly"
                 color="orange"
                 gradient="from-amber-600 to-orange-600"
+                isDarkMode={isDarkMode}
               />
             </div>
           </section>
 
           {/* Controls */}
-          <section className="w-full bg-white/80 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-cyan-200/60 shadow-lg shadow-cyan-900/5">
+          <section className={`w-full backdrop-blur-sm rounded-xl lg:rounded-2xl border shadow-lg transition-all duration-300 ${
+            isDarkMode
+              ? "bg-gray-800/80 border-gray-700 shadow-gray-900/20"
+              : "bg-white/80 border-cyan-200/60 shadow-cyan-900/5"
+          }`}>
             <div className="p-3 sm:p-4 lg:p-6">
               <div className="flex flex-col gap-3 sm:gap-4 lg:gap-6">
                 {/* Search */}
                 <div className="w-full">
-                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+                  <label className={`block text-xs sm:text-sm font-semibold mb-2 ${
+                    isDarkMode ? "text-gray-300" : "text-slate-700"
+                  }`}>
                     <Search className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
                     Tìm kiếm khách hàng
                   </label>
                   <div className="relative">
-                    <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                    <Search className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 ${
+                      isDarkMode ? "text-gray-500" : "text-slate-400"
+                    }`} />
                     <input
                       placeholder="Nhập tên hoặc số điện thoại..."
-                      className="w-full h-10 sm:h-11 lg:h-12 pl-10 sm:pl-12 pr-3 sm:pr-4 rounded-lg lg:rounded-xl border border-cyan-200 bg-white/90 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none text-sm lg:text-base"
+                      className={`w-full h-10 sm:h-11 lg:h-12 pl-10 sm:pl-12 pr-3 sm:pr-4 rounded-lg lg:rounded-xl border focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all outline-none text-sm lg:text-base ${
+                        isDarkMode
+                          ? "border-gray-600 bg-gray-700/90 text-gray-100 placeholder-gray-400"
+                          : "border-cyan-200 bg-white/90 text-gray-900 placeholder-gray-500"
+                      }`}
                       value={query}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => {
                         setQuery(e.target.value);
@@ -659,7 +777,9 @@ export default function AdminApp() {
                 {/* Filters & Actions */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
-                    <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+                    <label className={`block text-xs sm:text-sm font-semibold mb-2 ${
+                      isDarkMode ? "text-gray-300" : "text-slate-700"
+                    }`}>
                       <Filter className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
                       Trạng thái
                     </label>
@@ -669,7 +789,11 @@ export default function AdminApp() {
                         setFilterWinner(e.target.value as FilterWinner);
                         setPage(1);
                       }}
-                      className="w-full h-10 sm:h-11 lg:h-12 rounded-lg lg:rounded-xl border border-cyan-200 px-3 sm:px-4 bg-white/90 text-sm lg:text-base"
+                      className={`w-full h-10 sm:h-11 lg:h-12 rounded-lg lg:rounded-xl border px-3 sm:px-4 text-sm lg:text-base ${
+                        isDarkMode
+                          ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                          : "border-cyan-200 bg-white/90 text-gray-900"
+                      }`}
                     >
                       <option value="all">Tất cả khách hàng</option>
                       <option value="winner">🏆 Người trúng thưởng</option>
@@ -678,7 +802,9 @@ export default function AdminApp() {
                   </div>
 
                   <div className="flex-1 min-w-0 sm:max-w-32">
-                    <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+                    <label className={`block text-xs sm:text-sm font-semibold mb-2 ${
+                      isDarkMode ? "text-gray-300" : "text-slate-700"
+                    }`}>
                       Hiển thị
                     </label>
                     <select
@@ -687,7 +813,11 @@ export default function AdminApp() {
                         setPageSize(Number(e.target.value));
                         setPage(1);
                       }}
-                      className="w-full h-10 sm:h-11 lg:h-12 rounded-lg lg:rounded-xl border border-cyan-200 px-3 sm:px-4 bg-white/90 text-sm lg:text-base"
+                      className={`w-full h-10 sm:h-11 lg:h-12 rounded-lg lg:rounded-xl border px-3 sm:px-4 text-sm lg:text-base ${
+                        isDarkMode
+                          ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                          : "border-cyan-200 bg-white/90 text-gray-900"
+                      }`}
                     >
                       {PAGE_SIZE_OPTIONS.map((n) => (
                         <option key={n} value={n}>
@@ -763,8 +893,12 @@ export default function AdminApp() {
 
                 {/* Results Summary */}
                 <div className="w-full">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm bg-cyan-50 rounded-lg p-3 lg:p-4">
-                    <div className="font-medium text-slate-900">
+                  <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm rounded-lg p-3 lg:p-4 ${
+                    isDarkMode ? "bg-gray-700/50" : "bg-cyan-50"
+                  }`}>
+                    <div className={`font-medium ${
+                      isDarkMode ? "text-gray-100" : "text-slate-900"
+                    }`}>
                       <span className="text-cyan-600 font-bold">
                         {paginatedData.length}
                       </span>{" "}
@@ -774,14 +908,22 @@ export default function AdminApp() {
                       </span>{" "}
                       bản ghi
                     </div>
-                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs text-slate-600">
+                    <div className="flex flex-wrap gap-1 sm:gap-2 text-xs">
                       {query && (
-                        <span className="bg-cyan-100 text-cyan-700 px-2 py-1 rounded-lg font-medium">
+                        <span className={`px-2 py-1 rounded-lg font-medium ${
+                          isDarkMode
+                            ? "bg-cyan-900/30 text-cyan-300"
+                            : "bg-cyan-100 text-cyan-700"
+                        }`}>
                           🔍 "{query}"
                         </span>
                       )}
                       {filterWinner !== "all" && (
-                        <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg font-medium">
+                        <span className={`px-2 py-1 rounded-lg font-medium ${
+                          isDarkMode
+                            ? "bg-emerald-900/30 text-emerald-300"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}>
                           {filterWinner === "winner"
                             ? "🎁 Đã nhận quà"
                             : "👤 Chưa trúng"}
@@ -795,13 +937,19 @@ export default function AdminApp() {
           </section>
 
           {/* Table */}
-          <section className="w-full bg-white/80 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-cyan-200/60 shadow-lg shadow-cyan-900/5 overflow-hidden">
+          <section className={`w-full backdrop-blur-sm rounded-xl lg:rounded-2xl border shadow-lg overflow-hidden transition-all duration-300 ${
+            isDarkMode
+              ? "bg-gray-800/80 border-gray-700 shadow-gray-900/20"
+              : "bg-white/80 border-cyan-200/60 shadow-cyan-900/5"
+          }`}>
             {/* Mobile */}
             <div className="lg:hidden">
               {loading ? (
                 <div className="py-12 text-center">
                   <Loader2 className="inline w-6 h-6 sm:w-8 sm:h-8 animate-spin text-cyan-600 mb-3" />
-                  <p className="text-slate-600 font-medium text-sm">
+                  <p className={`font-medium text-sm ${
+                    isDarkMode ? "text-gray-400" : "text-slate-600"
+                  }`}>
                     Đang tải dữ liệu...
                   </p>
                 </div>
@@ -810,37 +958,53 @@ export default function AdminApp() {
                   {error}
                 </div>
               ) : paginatedData.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 font-medium text-sm">
+                <div className={`py-12 text-center font-medium text-sm ${
+                  isDarkMode ? "text-gray-500" : "text-slate-500"
+                }`}>
                   Không tìm thấy dữ liệu phù hợp
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className={`divide-y ${
+                  isDarkMode ? "divide-gray-700" : "divide-slate-100"
+                }`}>
                   {paginatedData.map((customer, index) => (
                     <motion.div
                       key={customer.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-3 sm:p-4 hover:bg-cyan-50 transition-colors"
+                      className={`p-3 sm:p-4 transition-colors ${
+                        isDarkMode ? "hover:bg-gray-700/50" : "hover:bg-cyan-50"
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center flex-shrink-0">
-                            <span className="font-bold text-slate-700 text-xs sm:text-sm">
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0 ${
+                            isDarkMode
+                              ? "from-gray-600 to-gray-700"
+                              : "from-slate-100 to-slate-200"
+                          }`}>
+                            <span className={`font-bold text-xs sm:text-sm ${
+                              isDarkMode ? "text-gray-200" : "text-slate-700"
+                            }`}>
                               #{customer.id}
                             </span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">
+                            <h3 className={`font-bold text-sm sm:text-base truncate ${
+                              isDarkMode ? "text-gray-100" : "text-slate-900"
+                            }`}>
                               {customer.fullName}
                             </h3>
-                            <RewardBadge reward={customer.reward} />
+                            <RewardBadge reward={customer.reward} isDarkMode={isDarkMode} />
                           </div>
                         </div>
                       </div>
                       <div className="space-y-2 text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-500 min-w-4">📞</span>
+                          <span className={`min-w-4 ${
+                            isDarkMode ? "text-gray-400" : "text-slate-500"
+                          }`}>📞</span>
                           <a
                             href={`tel:${customer.phoneNumber}`}
                             className="text-cyan-600 hover:underline font-medium truncate"
@@ -849,8 +1013,12 @@ export default function AdminApp() {
                           </a>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-500 min-w-4">🕒</span>
-                          <span className="text-slate-700 font-medium">
+                          <span className={`min-w-4 ${
+                            isDarkMode ? "text-gray-400" : "text-slate-500"
+                          }`}>🕒</span>
+                          <span className={`font-medium ${
+                            isDarkMode ? "text-gray-300" : "text-slate-700"
+                          }`}>
                             {formatVN(new Date(customer.joinedAt))}
                           </span>
                         </div>
@@ -864,7 +1032,11 @@ export default function AdminApp() {
             {/* Desktop */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full min-w-full">
-                <thead className="bg-gradient-to-r from-cyan-50 to-blue-50 text-slate-700 sticky top-0">
+                <thead className={`sticky top-0 ${
+                  isDarkMode
+                    ? "bg-gradient-to-r from-gray-700 to-gray-800 text-gray-200"
+                    : "bg-gradient-to-r from-cyan-50 to-blue-50 text-slate-700"
+                }`}>
                   <tr>
                     <SortableTableHeader
                       label="ID"
@@ -872,6 +1044,7 @@ export default function AdminApp() {
                       currentSort={sortField}
                       direction={sortDirection}
                       onSort={handleSort}
+                      isDarkMode={isDarkMode}
                     />
                     <SortableTableHeader
                       label="Khách hàng"
@@ -879,24 +1052,30 @@ export default function AdminApp() {
                       currentSort={sortField}
                       direction={sortDirection}
                       onSort={handleSort}
+                      isDarkMode={isDarkMode}
                     />
-                    <Th>Số điện thoại</Th>
+                    <Th isDarkMode={isDarkMode}>Số điện thoại</Th>
                     <SortableTableHeader
                       label="Thời gian đăng ký"
                       field="joinedAt"
                       currentSort={sortField}
                       direction={sortDirection}
                       onSort={handleSort}
+                      isDarkMode={isDarkMode}
                     />
-                    <Th>Trạng thái</Th>
+                    <Th isDarkMode={isDarkMode}>Trạng thái</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/60">
+                <tbody className={`divide-y ${
+                  isDarkMode ? "divide-gray-700/60" : "divide-slate-100/60"
+                }`}>
                   {loading ? (
                     <tr>
                       <td colSpan={5} className="py-16 text-center">
                         <Loader2 className="inline w-8 h-8 animate-spin text-cyan-600 mb-4" />
-                        <p className="text-slate-600 font-medium text-lg">
+                        <p className={`font-medium text-lg ${
+                          isDarkMode ? "text-gray-400" : "text-slate-600"
+                        }`}>
                           Đang tải dữ liệu...
                         </p>
                       </td>
@@ -914,7 +1093,9 @@ export default function AdminApp() {
                     <tr>
                       <td
                         colSpan={5}
-                        className="py-16 text-center text-slate-500 font-medium text-lg"
+                        className={`py-16 text-center font-medium text-lg ${
+                          isDarkMode ? "text-gray-500" : "text-slate-500"
+                        }`}
                       >
                         Không tìm thấy dữ liệu phù hợp
                       </td>
@@ -926,24 +1107,39 @@ export default function AdminApp() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.02 }}
-                        className={`hover:bg-gradient-to-r hover:from-cyan-50/80 hover:to-blue-50/60 transition-all ${index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                          }`}
+                        className={`transition-all ${
+                          isDarkMode
+                            ? `hover:bg-gradient-to-r hover:from-gray-700/80 hover:to-gray-600/60 ${
+                                index % 2 === 0 ? "bg-gray-800" : "bg-gray-700/40"
+                              }`
+                            : `hover:bg-gradient-to-r hover:from-cyan-50/80 hover:to-blue-50/60 ${
+                                index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                              }`
+                        }`}
                       >
-                        <Td className="font-mono font-bold text-slate-800">
+                        <Td className={`font-mono font-bold ${
+                          isDarkMode ? "text-gray-200" : "text-slate-800"
+                        }`} isDarkMode={isDarkMode}>
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center ${
+                              isDarkMode
+                                ? "from-gray-600 to-gray-700"
+                                : "from-slate-100 to-slate-200"
+                            }`}>
                               <span className="text-xs font-bold">
                                 #{customer.id}
                               </span>
                             </div>
                           </div>
                         </Td>
-                        <Td>
-                          <div className="font-bold text-slate-900 text-base">
+                        <Td isDarkMode={isDarkMode}>
+                          <div className={`font-bold text-base ${
+                            isDarkMode ? "text-gray-100" : "text-slate-900"
+                          }`}>
                             {customer.fullName}
                           </div>
                         </Td>
-                        <Td>
+                        <Td isDarkMode={isDarkMode}>
                           <div className="space-y-1">
                             <div>
                               <a
@@ -955,14 +1151,18 @@ export default function AdminApp() {
                             </div>
                           </div>
                         </Td>
-                        <Td className="font-medium text-slate-700">
+                        <Td className={`font-medium ${
+                          isDarkMode ? "text-gray-300" : "text-slate-700"
+                        }`} isDarkMode={isDarkMode}>
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-slate-400" />
+                            <Clock className={`w-4 h-4 ${
+                              isDarkMode ? "text-gray-500" : "text-slate-400"
+                            }`} />
                             {formatVN(new Date(customer.joinedAt))}
                           </div>
                         </Td>
-                        <Td>
-                          <RewardBadge reward={customer.reward} />
+                        <Td isDarkMode={isDarkMode}>
+                          <RewardBadge reward={customer.reward} isDarkMode={isDarkMode} />
                         </Td>
                       </motion.tr>
                     ))
@@ -973,23 +1173,32 @@ export default function AdminApp() {
 
             {/* Pagination */}
             {!loading && !error && processedData.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 lg:p-6 bg-gradient-to-r from-white to-cyan-50 border-t border-slate-100 gap-3 sm:gap-0">
-                <div className="text-xs sm:text-sm text-slate-600 text-center sm:text-left">
+              <div className={`flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 lg:p-6 border-t gap-3 sm:gap-0 ${
+                isDarkMode
+                  ? "bg-gradient-to-r from-gray-800 to-gray-700 border-gray-700"
+                  : "bg-gradient-to-r from-white to-cyan-50 border-slate-100"
+              }`}>
+                <div className={`text-xs sm:text-sm text-center sm:text-left ${
+                  isDarkMode ? "text-gray-400" : "text-slate-600"
+                }`}>
                   <span className="font-semibold">
                     Trang {page} trên {totalPages}
                   </span>
-                  <span className="mx-2 text-slate-400">•</span>
+                  <span className={`mx-2 ${
+                    isDarkMode ? "text-gray-600" : "text-slate-400"
+                  }`}>•</span>
                   <span>
                     Tổng {processedData.length.toLocaleString("vi-VN")} bản ghi
                   </span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
-                  <PaginationButton onClick={() => setPage(1)} disabled={page <= 1}>
+                  <PaginationButton onClick={() => setPage(1)} disabled={page <= 1} isDarkMode={isDarkMode}>
                     Đầu
                   </PaginationButton>
                   <PaginationButton
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
+                    isDarkMode={isDarkMode}
                   >
                     ‹
                   </PaginationButton>
@@ -1010,10 +1219,13 @@ export default function AdminApp() {
                           <button
                             key={pageNum}
                             onClick={() => setPage(pageNum)}
-                            className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg text-xs sm:text-sm font-medium transition-all ${page === pageNum
+                            className={`w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                              page === pageNum
                                 ? "bg-cyan-600 text-white shadow-lg"
+                                : isDarkMode
+                                ? "bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600"
                                 : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
-                              }`}
+                            }`}
                           >
                             {pageNum}
                           </button>
@@ -1025,12 +1237,14 @@ export default function AdminApp() {
                   <PaginationButton
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
+                    isDarkMode={isDarkMode}
                   >
                     ›
                   </PaginationButton>
                   <PaginationButton
                     onClick={() => setPage(totalPages)}
                     disabled={page >= totalPages}
+                    isDarkMode={isDarkMode}
                   >
                     Cuối
                   </PaginationButton>
@@ -1046,19 +1260,29 @@ export default function AdminApp() {
 
 /* ---------- Enhanced Components ---------- */
 
-function BackgroundPattern() {
+function BackgroundPattern({ isDarkMode }: { isDarkMode: boolean }) {
   return (
     <>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(6,182,212,0.1)_1px,transparent_0)] bg-[size:20px_20px] opacity-40" />
+      <div className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(6,182,212,0.1)_1px,transparent_0)] bg-[size:20px_20px] ${
+        isDarkMode ? "opacity-20" : "opacity-40"
+      }`} />
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full bg-gradient-to-tr from-cyan-400/20 via-blue-500/10 to-indigo-500/5 blur-3xl"
+        className={`pointer-events-none absolute -top-32 -left-32 h-64 w-64 rounded-full blur-3xl ${
+          isDarkMode
+            ? "bg-gradient-to-tr from-cyan-600/10 via-blue-700/5 to-indigo-800/5"
+            : "bg-gradient-to-tr from-cyan-400/20 via-blue-500/10 to-indigo-500/5"
+        }`}
         animate={{ y: [0, -30, 0], scale: [1, 1.2, 1], rotate: [0, 120, 0] }}
         transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full bg-gradient-to-tr from-blue-400/20 via-cyan-500/10 to-teal-500/5 blur-3xl"
+        className={`pointer-events-none absolute -bottom-32 -right-32 h-64 w-64 rounded-full blur-3xl ${
+          isDarkMode
+            ? "bg-gradient-to-tr from-blue-600/10 via-cyan-700/5 to-teal-800/5"
+            : "bg-gradient-to-tr from-blue-400/20 via-cyan-500/10 to-teal-500/5"
+        }`}
         animate={{ y: [0, 30, 0], scale: [1, 1.1, 1], rotate: [0, -120, 0] }}
         transition={{ duration: 35, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -1072,22 +1296,29 @@ function RealtimeControls({
   onManualRefresh,
   isRefreshing,
   lastUpdate,
+  isDarkMode,
 }: {
   isRealtime: boolean;
   onToggleRealtime: () => void;
   onManualRefresh: () => void;
   isRefreshing: boolean;
   lastUpdate: Date;
+  isDarkMode: boolean;
 }) {
   return (
     <div className="flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-3">
       <div className="flex items-center gap-2 lg:gap-3">
         <button
           onClick={onToggleRealtime}
-          className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg border font-medium text-xs lg:text-sm transition-all ${isRealtime
-              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+          className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg border font-medium text-xs lg:text-sm transition-all ${
+            isRealtime
+              ? isDarkMode
+                ? "bg-emerald-900/30 border-emerald-700 text-emerald-400 hover:bg-emerald-800/30"
+                : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+              : isDarkMode
+              ? "bg-red-900/30 border-red-700 text-red-400 hover:bg-red-800/30"
               : "bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-            }`}
+          }`}
         >
           {isRealtime ? (
             <Wifi className="w-3 h-3 lg:w-4 lg:h-4" />
@@ -1111,7 +1342,11 @@ function RealtimeControls({
         </motion.button>
       </div>
 
-      <div className="text-xs text-slate-500 bg-slate-50 px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg">
+      <div className={`text-xs px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg ${
+        isDarkMode
+          ? "text-gray-400 bg-gray-700/50"
+          : "text-slate-500 bg-slate-50"
+      }`}>
         <span className="font-medium">Cập nhật:</span>{" "}
         {lastUpdate.toLocaleTimeString("vi-VN")}
       </div>
@@ -1122,18 +1357,28 @@ function RealtimeControls({
 function StatusBadge({
   label,
   color,
+  isDarkMode,
 }: {
   label: string;
   color: "green" | "blue";
+  isDarkMode: boolean;
 }) {
-  const colors: Record<"green" | "blue", string> = {
-    green: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    blue: "bg-cyan-100 text-cyan-700 border-cyan-200",
+  const colors: Record<"green" | "blue", { light: string; dark: string }> = {
+    green: {
+      light: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      dark: "bg-emerald-900/30 text-emerald-400 border-emerald-700",
+    },
+    blue: {
+      light: "bg-cyan-100 text-cyan-700 border-cyan-200",
+      dark: "bg-cyan-900/30 text-cyan-400 border-cyan-700",
+    },
   };
 
   return (
     <span
-      className={`px-2 lg:px-3 py-1 lg:py-1.5 text-xs font-semibold rounded-full border ${colors[color]}`}
+      className={`px-2 lg:px-3 py-1 lg:py-1.5 text-xs font-semibold rounded-full border ${
+        isDarkMode ? colors[color].dark : colors[color].light
+      }`}
     >
       {label}
     </span>
@@ -1147,8 +1392,9 @@ function EnhancedStatsCard({
   subtitle,
   trend,
   trendDirection = "neutral",
-  color, // chỉ để tạo className (tuỳ biến)
+  color,
   gradient,
+  isDarkMode,
 }: {
   icon: ReactNode;
   title: string;
@@ -1158,23 +1404,39 @@ function EnhancedStatsCard({
   trendDirection?: "up" | "down" | "neutral";
   color: string;
   gradient: string;
+  isDarkMode: boolean;
 }) {
-  const trendColors: Record<"up" | "down" | "neutral", string> = {
-    up: "text-emerald-600 bg-emerald-50",
-    down: "text-red-600 bg-red-50",
-    neutral: "text-slate-600 bg-slate-50",
+  const trendColors: Record<"up" | "down" | "neutral", { light: string; dark: string }> = {
+    up: {
+      light: "text-emerald-600 bg-emerald-50",
+      dark: "text-emerald-400 bg-emerald-900/30",
+    },
+    down: {
+      light: "text-red-600 bg-red-50",
+      dark: "text-red-400 bg-red-900/30",
+    },
+    neutral: {
+      light: "text-slate-600 bg-slate-50",
+      dark: "text-gray-400 bg-gray-700/50",
+    },
   };
 
   return (
     <motion.div
-      className="relative bg-white/90 backdrop-blur-sm rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 border border-cyan-200/60 shadow-lg shadow-cyan-900/5 hover:shadow-xl transition-all duration-300 overflow-hidden group"
+      className={`relative backdrop-blur-sm rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 border shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group ${
+        isDarkMode
+          ? "bg-gray-800/90 border-gray-700 shadow-gray-900/20"
+          : "bg-white/90 border-cyan-200/60 shadow-cyan-900/5"
+      }`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
     >
       {/* Background Gradient */}
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-[0.02] group-hover:opacity-[0.05] transition-opacity`}
+        className={`absolute inset-0 bg-gradient-to-br ${gradient} ${
+          isDarkMode ? "opacity-[0.08]" : "opacity-[0.02]"
+        } group-hover:opacity-[0.12] transition-opacity`}
       />
 
       <div className="relative">
@@ -1186,7 +1448,9 @@ function EnhancedStatsCard({
           </div>
           {trend && (
             <div
-              className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-xs font-semibold ${trendColors[trendDirection]}`}
+              className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-xs font-semibold ${
+                isDarkMode ? trendColors[trendDirection].dark : trendColors[trendDirection].light
+              }`}
             >
               {trendDirection === "up" && (
                 <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -1203,13 +1467,19 @@ function EnhancedStatsCard({
         </div>
 
         <div>
-          <h3 className="text-xs sm:text-sm lg:text-base font-semibold text-slate-600 mb-1">
+          <h3 className={`text-xs sm:text-sm lg:text-base font-semibold mb-1 ${
+            isDarkMode ? "text-gray-400" : "text-slate-600"
+          }`}>
             {title}
           </h3>
-          <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-black text-slate-900 mb-1 font-mono leading-tight">
+          <div className={`text-lg sm:text-xl lg:text-2xl xl:text-3xl font-black mb-1 font-mono leading-tight ${
+            isDarkMode ? "text-gray-100" : "text-slate-900"
+          }`}>
             {value}
           </div>
-          <p className="text-xs lg:text-sm text-slate-500 font-medium">
+          <p className={`text-xs lg:text-sm font-medium ${
+            isDarkMode ? "text-gray-500" : "text-slate-500"
+          }`}>
             {subtitle}
           </p>
         </div>
@@ -1224,36 +1494,50 @@ function SortableTableHeader({
   currentSort,
   direction,
   onSort,
+  isDarkMode,
 }: {
   label: string;
   field: SortField;
   currentSort: SortField;
   direction: SortDirection;
   onSort: (field: SortField) => void;
+  isDarkMode: boolean;
 }) {
   const isActive = currentSort === field;
 
   return (
     <th
-      className="text-left font-bold px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap cursor-pointer hover:bg-cyan-100/80 transition-colors select-none group"
+      className={`text-left font-bold px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap cursor-pointer transition-colors select-none group ${
+        isDarkMode
+          ? "hover:bg-gray-600/80"
+          : "hover:bg-cyan-100/80"
+      }`}
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-1 lg:gap-2">
-        <span className="group-hover:text-cyan-600 transition-colors text-sm lg:text-base">
+        <span className={`group-hover:text-cyan-600 transition-colors text-sm lg:text-base ${
+          isDarkMode ? "text-gray-200" : "text-slate-700"
+        }`}>
           {label}
         </span>
         <div className="flex flex-col">
           <ChevronUp
-            className={`w-3 h-3 -mb-1 transition-colors ${isActive && direction === "asc"
+            className={`w-3 h-3 -mb-1 transition-colors ${
+              isActive && direction === "asc"
                 ? "text-cyan-600"
+                : isDarkMode
+                ? "text-gray-500"
                 : "text-slate-400"
-              }`}
+            }`}
           />
           <ChevronDown
-            className={`w-3 h-3 transition-colors ${isActive && direction === "desc"
+            className={`w-3 h-3 transition-colors ${
+              isActive && direction === "desc"
                 ? "text-cyan-600"
+                : isDarkMode
+                ? "text-gray-500"
                 : "text-slate-400"
-              }`}
+            }`}
           />
         </div>
       </div>
@@ -1261,9 +1545,11 @@ function SortableTableHeader({
   );
 }
 
-function Th({ children }: { children: ReactNode }) {
+function Th({ children, isDarkMode }: { children: ReactNode; isDarkMode: boolean }) {
   return (
-    <th className="text-left font-bold px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-slate-700 text-sm lg:text-base">
+    <th className={`text-left font-bold px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm lg:text-base ${
+      isDarkMode ? "text-gray-200" : "text-slate-700"
+    }`}>
       {children}
     </th>
   );
@@ -1272,9 +1558,11 @@ function Th({ children }: { children: ReactNode }) {
 function Td({
   children,
   className = "",
+  isDarkMode,
 }: {
   children: ReactNode;
   className?: string;
+  isDarkMode: boolean;
 }) {
   return (
     <td
@@ -1285,7 +1573,7 @@ function Td({
   );
 }
 
-function RewardBadge({ reward }: { reward: string | null }) {
+function RewardBadge({ reward, isDarkMode }: { reward: string | null; isDarkMode: boolean }) {
   if (reward) {
     return (
       <motion.span
@@ -1302,8 +1590,14 @@ function RewardBadge({ reward }: { reward: string | null }) {
   }
 
   return (
-    <span className="inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 mr-1" />
+    <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border ${
+      isDarkMode
+        ? "bg-gray-700 text-gray-400 border-gray-600"
+        : "bg-slate-100 text-slate-600 border-slate-200"
+    }`}>
+      <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-1 ${
+        isDarkMode ? "bg-gray-500" : "bg-slate-400"
+      }`} />
       Chưa trúng
     </span>
   );
@@ -1313,14 +1607,20 @@ function PaginationButton({
   children,
   onClick,
   disabled,
+  isDarkMode,
 }: {
   children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  isDarkMode: boolean;
 }) {
   return (
     <motion.button
-      className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white shadow-sm font-medium text-slate-700 transition-all text-xs sm:text-sm"
+      className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border shadow-sm font-medium transition-all text-xs sm:text-sm ${
+        isDarkMode
+          ? "border-gray-600 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-700 text-gray-300"
+          : "border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white text-slate-700"
+      }`}
       onClick={onClick}
       disabled={disabled}
       whileHover={!disabled ? { scale: 1.05 } : {}}
