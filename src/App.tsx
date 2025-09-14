@@ -587,7 +587,7 @@ export default function AdminApp() {
                       <Moon className="w-4 h-4" />
                     )}
                   </motion.button>
-                  <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
+                  {/* <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
                     isDarkMode
                       ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
                       : "bg-slate-100 hover:bg-slate-200 text-slate-600"
@@ -600,7 +600,7 @@ export default function AdminApp() {
                       : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                   }`}>
                     <Settings className="w-4 h-4" />
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
