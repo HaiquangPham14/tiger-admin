@@ -33,8 +33,11 @@ import {
   Download,
   Moon,
   Sun,
+  Calendar,
+  CalendarRange,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from 'xlsx';
 
 /* ---------- Types ---------- */
 type FilterWinner = "all" | "winner" | "non-winner";
@@ -47,6 +50,13 @@ type Stats = {
   today: number;
   thisWeek: number;
   growthRate: number;
+};
+
+type DateFilter = {
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -182,6 +192,38 @@ const exportForUnity = async (): Promise<void> => {
   URL.revokeObjectURL(url);
 };
 
+// Export filtered data as Excel
+const exportFilteredData = (data: TigerCustomer[], filename: string): void => {
+  // Tạo dữ liệu Excel
+  const excelData = data.map((customer) => ({
+    'ID': customer.id,
+    'Họ tên': customer.fullName,
+    'Số điện thoại': customer.phoneNumber,
+    'Thời gian đăng ký': formatVN(new Date(customer.joinedAt)),
+    'Phần thưởng': customer.reward ?? '',
+  }));
+
+  // Tạo workbook và worksheet
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+  // Tự động điều chỉnh độ rộng cột
+  const cols = [
+    { wch: 8 },  // ID
+    { wch: 25 }, // Họ tên
+    { wch: 15 }, // Số điện thoại
+    { wch: 20 }, // Thời gian đăng ký
+    { wch: 20 }, // Phần thưởng
+  ];
+  worksheet['!cols'] = cols;
+
+  // Thêm worksheet vào workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Dữ liệu đã lọc');
+
+  // Tải file
+  XLSX.writeFile(workbook, filename);
+};
+
 /* ---------- Component ---------- */
 export default function AdminApp() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -195,6 +237,14 @@ export default function AdminApp() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
+  // Date/Time filter state
+  const [dateFilter, setDateFilter] = useState<DateFilter>({
+    startDate: "",
+    endDate: "",
+    startTime: "00:00",
+    endTime: "23:59",
+  });
+
   // Realtime states
   const [isRealtime, setIsRealtime] = useState<boolean>(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -206,6 +256,9 @@ export default function AdminApp() {
 
   // Unity export state
   const [isExportingUnity, setIsExportingUnity] = useState<boolean>(false);
+
+  // Filtered export state
+  const [isExportingFiltered, setIsExportingFiltered] = useState<boolean>(false);
 
   // Dark theme state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -272,6 +325,73 @@ export default function AdminApp() {
     } finally {
       setIsExportingUnity(false);
     }
+  };
+
+  // Filtered Export
+  const handleFilteredExport = async (): Promise<void> => {
+    try {
+      setIsExportingFiltered(true);
+      const filterSuffix = [];
+      if (query) filterSuffix.push(`search-${query.replace(/[^a-zA-Z0-9]/g, '_')}`);
+      if (filterWinner !== 'all') filterSuffix.push(filterWinner);
+      if (dateFilter.startDate) filterSuffix.push(`from-${dateFilter.startDate}`);
+      if (dateFilter.endDate) filterSuffix.push(`to-${dateFilter.endDate}`);
+      
+      const filename = `tiger_customers_filtered_${filterSuffix.join('_')}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      exportFilteredData(processedData, filename);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Lỗi khi xuất dữ liệu đã lọc.";
+      setError(msg);
+    } finally {
+      setIsExportingFiltered(false);
+    }
+  };
+
+  // Quick date filter presets
+  const setDateFilterPreset = (preset: string) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'today':
+        setDateFilter({
+          startDate: todayStr,
+          endDate: todayStr,
+          startTime: "00:00",
+          endTime: "23:59",
+        });
+        break;
+      case 'yesterday':
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        setDateFilter({
+          startDate: yesterdayStr,
+          endDate: yesterdayStr,
+          startTime: "00:00",
+          endTime: "23:59",
+        });
+        break;
+      case 'week':
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        setDateFilter({
+          startDate: weekAgo.toISOString().split('T')[0],
+          endDate: todayStr,
+          startTime: "00:00",
+          endTime: "23:59",
+        });
+        break;
+      case 'clear':
+        setDateFilter({
+          startDate: "",
+          endDate: "",
+          startTime: "00:00",
+          endTime: "23:59",
+        });
+        break;
+    }
+    setPage(1);
   };
 
   // Lần fetch đầu
@@ -344,6 +464,26 @@ export default function AdminApp() {
       filtered = filtered.filter((x) => !x.reward);
     }
 
+    // Date/Time filter
+    if (dateFilter.startDate || dateFilter.endDate) {
+      filtered = filtered.filter((x) => {
+        const joinDate = new Date(x.joinedAt);
+        const joinDateStr = joinDate.toISOString().split('T')[0];
+        const joinTimeStr = joinDate.toTimeString().substring(0, 5);
+
+        // Check date range
+        if (dateFilter.startDate && joinDateStr < dateFilter.startDate) return false;
+        if (dateFilter.endDate && joinDateStr > dateFilter.endDate) return false;
+
+        // Check time range (only if we're filtering by the same day or time range matters)
+        if (dateFilter.startDate === dateFilter.endDate || (!dateFilter.endDate && dateFilter.startDate === joinDateStr)) {
+          if (joinTimeStr < dateFilter.startTime || joinTimeStr > dateFilter.endTime) return false;
+        }
+
+        return true;
+      });
+    }
+
     // Sort (ổn định & typed)
     const comparator = (a: TigerCustomer, b: TigerCustomer): number => {
       let res = 0;
@@ -360,7 +500,7 @@ export default function AdminApp() {
     filtered.sort(comparator);
 
     return filtered;
-  }, [data, query, filterWinner, sortField, sortDirection]);
+  }, [data, query, filterWinner, sortField, sortDirection, dateFilter]);
 
   // Pagination
   const totalPages = Math.max(
@@ -375,43 +515,6 @@ export default function AdminApp() {
     const start = (page - 1) * pageSize;
     return processedData.slice(start, start + pageSize);
   }, [processedData, page, pageSize]);
-
-  // CSV Export
-  const exportToCSV = (): void => {
-    const headers = [
-      "ID",
-      "Họ tên",
-      "Số điện thoại",
-      "Thời gian đăng ký",
-      "Phần thưởng",
-    ];
-    const csvData = processedData.map((customer) => [
-      customer.id,
-      customer.fullName,
-      customer.phoneNumber,
-      formatVN(new Date(customer.joinedAt)),
-      customer.reward ?? "",
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map((row) => row.map((field) => `"${String(field)}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob(["\uFEFF" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `tiger-customers-${new Date().toISOString().split("T")[0]}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleSort = (field: SortField): void => {
     if (sortField === field) {
@@ -587,20 +690,6 @@ export default function AdminApp() {
                       <Moon className="w-4 h-4" />
                     )}
                   </motion.button>
-                  {/* <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
-                    isDarkMode
-                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                  }`}>
-                    <Bell className="w-4 h-4" />
-                  </button>
-                  <button className={`w-8 h-8 xl:w-9 xl:h-9 rounded-lg flex items-center justify-center transition-colors ${
-                    isDarkMode
-                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                  }`}>
-                    <Settings className="w-4 h-4" />
-                  </button> */}
                 </div>
               </div>
 
@@ -891,6 +980,175 @@ export default function AdminApp() {
                   </div>
                 </div>
 
+                {/* Date/Time Filter Section */}
+                <div className="w-full">
+                  <label className={`block text-xs sm:text-sm font-semibold mb-3 ${
+                    isDarkMode ? "text-gray-300" : "text-slate-700"
+                  }`}>
+                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                    Lọc theo ngày & giờ
+                  </label>
+                  
+                  {/* Quick Date Presets */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <button
+                      onClick={() => setDateFilterPreset('today')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isDarkMode
+                          ? "bg-blue-900/30 hover:bg-blue-800/40 text-blue-400 border border-blue-700"
+                          : "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                      }`}
+                    >
+                      Hôm nay
+                    </button>
+                    <button
+                      onClick={() => setDateFilterPreset('yesterday')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isDarkMode
+                          ? "bg-purple-900/30 hover:bg-purple-800/40 text-purple-400 border border-purple-700"
+                          : "bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200"
+                      }`}
+                    >
+                      Hôm qua
+                    </button>
+                    <button
+                      onClick={() => setDateFilterPreset('week')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isDarkMode
+                          ? "bg-emerald-900/30 hover:bg-emerald-800/40 text-emerald-400 border border-emerald-700"
+                          : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
+                      }`}
+                    >
+                      7 ngày qua
+                    </button>
+                    <button
+                      onClick={() => setDateFilterPreset('clear')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        isDarkMode
+                          ? "bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600"
+                          : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
+                      }`}
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  </div>
+
+                  {/* Date/Time Inputs */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Start Date/Time */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${
+                          isDarkMode ? "text-gray-400" : "text-slate-600"
+                        }`}>
+                          Từ ngày
+                        </label>
+                        <input
+                          type="date"
+                          value={dateFilter.startDate}
+                          onChange={(e) => {
+                            setDateFilter(prev => ({ ...prev, startDate: e.target.value }));
+                            setPage(1);
+                          }}
+                          className={`w-full h-9 px-3 rounded-lg border text-sm ${
+                            isDarkMode
+                              ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                              : "border-cyan-200 bg-white/90 text-gray-900"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${
+                          isDarkMode ? "text-gray-400" : "text-slate-600"
+                        }`}>
+                          Từ giờ
+                        </label>
+                        <input
+                          type="time"
+                          value={dateFilter.startTime}
+                          onChange={(e) => {
+                            setDateFilter(prev => ({ ...prev, startTime: e.target.value }));
+                            setPage(1);
+                          }}
+                          className={`w-full h-9 px-3 rounded-lg border text-sm ${
+                            isDarkMode
+                              ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                              : "border-cyan-200 bg-white/90 text-gray-900"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* End Date/Time */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${
+                          isDarkMode ? "text-gray-400" : "text-slate-600"
+                        }`}>
+                          Đến ngày
+                        </label>
+                        <input
+                          type="date"
+                          value={dateFilter.endDate}
+                          onChange={(e) => {
+                            setDateFilter(prev => ({ ...prev, endDate: e.target.value }));
+                            setPage(1);
+                          }}
+                          className={`w-full h-9 px-3 rounded-lg border text-sm ${
+                            isDarkMode
+                              ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                              : "border-cyan-200 bg-white/90 text-gray-900"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${
+                          isDarkMode ? "text-gray-400" : "text-slate-600"
+                        }`}>
+                          Đến giờ
+                        </label>
+                        <input
+                          type="time"
+                          value={dateFilter.endTime}
+                          onChange={(e) => {
+                            setDateFilter(prev => ({ ...prev, endTime: e.target.value }));
+                            setPage(1);
+                          }}
+                          className={`w-full h-9 px-3 rounded-lg border text-sm ${
+                            isDarkMode
+                              ? "border-gray-600 bg-gray-700/90 text-gray-100"
+                              : "border-cyan-200 bg-white/90 text-gray-900"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filtered Export Button */}
+                  <div className="flex justify-end mt-4">
+                    <motion.button
+                      onClick={handleFilteredExport}
+                      disabled={loading || processedData.length === 0 || isExportingFiltered}
+                      className="h-10 px-4 lg:px-6 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all text-sm"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      title="Tải về dữ liệu đã lọc"
+                    >
+                      {isExportingFiltered ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Đang tải...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4" />
+                          <span>Tải dữ liệu đã lọc ({processedData.length.toLocaleString("vi-VN")})</span>
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                </div>
+
                 {/* Results Summary */}
                 <div className="w-full">
                   <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm rounded-lg p-3 lg:p-4 ${
@@ -927,6 +1185,15 @@ export default function AdminApp() {
                           {filterWinner === "winner"
                             ? "🎁 Đã nhận quà"
                             : "👤 Chưa trúng"}
+                        </span>
+                      )}
+                      {(dateFilter.startDate || dateFilter.endDate) && (
+                        <span className={`px-2 py-1 rounded-lg font-medium ${
+                          isDarkMode
+                            ? "bg-purple-900/30 text-purple-300"
+                            : "bg-purple-100 text-purple-700"
+                        }`}>
+                          📅 Theo ngày
                         </span>
                       )}
                     </div>

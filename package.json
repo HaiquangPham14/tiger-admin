@@ -14,7 +14,8 @@
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.471.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
